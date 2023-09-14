@@ -31,8 +31,8 @@ parser.add_argument('--random_start',type=bool,default=False)
 parser.add_argument('--noise',type=str,default="Uniform")
 parser.add_argument('--num_restarts',type=int,default=1)
 
-parser.add_argument('--step_size',type=float,default=2./255)
-parser.add_argument('--num_steps',type=int,default=200)
+parser.add_argument('--step_size',type=float,default=1./255)
+parser.add_argument('--num_steps',type=int,default=100)
 parser.add_argument('--loss_f',type=str,default="Margin")#可选CE,Margin_loss,DLR,混合loss
 parser.add_argument('--use_odi',type=bool,default=False)
 parser.add_argument('--opt',type=str,default='SGD')
@@ -96,7 +96,7 @@ def main():
         'cost': cost
     }
     print(robust_accuracy)
-    filename = '%s_%s_26.json' % (args.dataset, args.model)
+    filename = '%s_%s_27.json' % (args.dataset, args.model)
     filename = os.path.join(args.result_path, filename)
     util.save_json(payload, filename)
     return
