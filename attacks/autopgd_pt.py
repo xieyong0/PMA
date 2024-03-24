@@ -14,9 +14,17 @@ import torch.nn.functional as F
 
 def Margin_loss(logits, y):
     logit_org = logits.gather(1, y.view(-1, 1))
-    logit_target = logits.gather(1, (logits - torch.eye(10)[y.to("cpu")].to("cuda") * 9999).argmax(1, keepdim=True))
+    logit_target = logits.gather(1, (logits - torch.eye(logits.shape[-1])[y.to("cpu")].to("cuda") * 9999).argmax(1, keepdim=True))
     loss = -logit_org + logit_target
     return loss.squeeze()
+
+def Softmax_Margin(logits, y):
+    logits = F.softmax(logits,dim=-1)
+    logit_org = logits.gather(1, y.view(-1, 1))
+    logit_target = logits.gather(1, (logits - torch.eye(logits.shape[-1])[y.to("cpu")].to("cuda") * 9999).argmax(1, keepdim=True))
+    loss = -logit_org + logit_target
+    return loss.squeeze()
+    
 
 class APGDAttack():
     def __init__(self, model, n_iter=100, norm='Linf', n_restarts=1, eps=None,
@@ -33,6 +41,7 @@ class APGDAttack():
         self.thr_decr = rho
         self.verbose = verbose
         self.device = device
+        self.t = 1.
 
     def check_oscillation(self, x, j, k, y5, k3=0.75):
         t = np.zeros(x.shape[1])
@@ -50,6 +59,21 @@ class APGDAttack():
 
         return -(x[np.arange(x.shape[0]), y] - x_sorted[:, -2] * ind - x_sorted[:, -1] * (1. - ind)) / (x_sorted[:, -1] - x_sorted[:, -3] + 1e-12)
 
+    def get_output_scale(self, output):
+        std_max_out = []
+        maxk = max((10,))
+        pred_val_out, pred_id_out = output.topk(maxk, 1, True, True)
+        std_max_out.extend((pred_val_out[:, 0] - pred_val_out[:, 1]).cpu().numpy())
+        scale_list = [item / self.t for item in std_max_out]
+        scale_list = torch.tensor(scale_list).to('cuda')
+        scale_list = torch.unsqueeze(scale_list, -1)
+        return scale_list
+
+    def CE_MI(self,logit,y):
+        scale_output = self.get_output_scale(logit.clone().detach())
+        logit = logit/scale_output
+        return F.cross_entropy(logit,y,reduce=False, reduction='none')
+        
     def attack_single_run(self, x_in, y_in):
         x = x_in.clone() if len(x_in.shape) == 4 else x_in.clone().unsqueeze(0)
         y = y_in.clone() if len(y_in.shape) == 1 else y_in.clone().unsqueeze(0)
@@ -77,6 +101,10 @@ class APGDAttack():
             criterion_indiv = self.dlr_loss
         elif self.loss == 'Margin':
             criterion_indiv = Margin_loss
+        elif self.loss == 'Softmax_Margin':
+            criterion_indiv = Softmax_Margin
+        elif self.loss == 'CE_MI':
+            criterion_indiv = self.CE_MI
         else:
             raise ValueError('unknowkn loss')
 
