@@ -8,6 +8,9 @@ import torch.nn.functional as F
 import numpy as np
 from torch.autograd import Variable
 from .utils import adv_check_and_update, one_hot_tensor
+import torch.optim as optim
+
+torch.manual_seed(0)
 
 def Dlr_loss(x, y):
     x_sorted, ind_sorted = x.sort(dim=1)
@@ -116,20 +119,29 @@ class PGDAttack():
         device = x_in.device
         epsilon = self.epsilon
         X_adv = x_in.detach().clone()
-        X_pgd = Variable(x_in.data, requires_grad=True)
-        nc = torch.zeros_like(y_in)
-
         step_size_begin = 2.0/255
 
+        with torch.no_grad():
+            clean_logits = model(x_in)
+            if isinstance(clean_logits, list):
+                clean_logits = clean_logits[-1]
+            clean_pred = clean_logits.data.max(1)[1].detach()
+            accs = clean_pred == y_in
+
         for _ in range(self.num_restarts):
-                
             if self.random_start:
-                random_noise = self._get_rand_noise(x_in)
-                X_pgd = Variable(X_pgd.data + random_noise, requires_grad=True)
+                random_noise = self._get_rand_noise(x_in[accs])
+                X_pgd = x_in[accs] + random_noise
+            else:
+                X_pgd = x_in[accs]
 
             if self.use_odi:
                 out = model(x_in)
                 rv = torch.FloatTensor(*out.shape).uniform_(-1., 1.).to(device)
+
+            cor_indexs = accs.nonzero().squeeze()
+            x_pgd = Variable(X_pgd[cor_indexs],requires_grad=True)
+            y = y_in[cor_indexs]
 
             for i in range(self.num_steps):
                 if self.decay_step == 'linear':
@@ -139,142 +151,62 @@ class PGDAttack():
                 else:
                     pass
                 
+                #optimizer.zero_grad()
+                logit = model(x_pgd)
                 if self.use_odi and i < 2:
-                    loss = (model(X_pgd) * rv).sum()
+                    loss = (logit * rv).sum()
                 elif self.loss_type == 'CE':
-                    loss = F.cross_entropy(model(X_pgd),y_in)
+                    loss = F.cross_entropy(logit,y)
+                ####
                 elif self.loss_type == 'CE_T':
-                    logit = model(X_pgd)
-                    logit_y = torch.eye(self.num_classes)[y_in.to("cpu")].to("cuda")*logit*1e8
+                    logit_y = torch.eye(self.num_classes)[y.to("cpu")].to("cuda")*logit*1e8
                     target = (logit - logit_y).argmax(dim=-1)
                     loss = -F.cross_entropy(logit,target)
                 elif self.loss_type == 'Dlr':
-                    loss = Dlr_loss(model(X_pgd),y_in).sum()
+                    loss = Dlr_loss(logit,y).sum()
                 elif self.loss_type == 'Margin':
-                    loss = Margin_loss(model(X_pgd),y_in,self.num_classes)
+                    loss = Margin_loss(logit,y,self.num_classes)
                 elif self.loss_type == 'SFM':
-                    loss = Softmax_Margin(model(X_pgd),y_in,self.num_classes)
+                    loss = Softmax_Margin(logit,y,self.num_classes)
                 elif self.loss_type == 'AltPGD':
-                    loss = AltPGD(model(X_pgd),y_in,i,self.num_steps,self.num_classes)
+                    loss = AltPGD(logit,y,i,self.num_steps,self.num_classes)
                 elif self.loss_type == 'AltPGD_MI':
-                    loss = AltPGD_MIFPE(model(X_pgd),y_in,i,self.num_steps,self.num_classes)
+                    loss = AltPGD_MIFPE(logit,y,i,self.num_steps,self.num_classes)
                 elif self.loss_type == 'Alt_DCM':
-                    loss = Alt_DCM(model(X_pgd),y_in,i,self.num_steps,self.num_classes)
+                    loss = Alt_DCM(logit,y,i,self.num_steps,self.num_classes)
                 elif self.loss_type == 'Alt_DCM_MI':
-                    loss = Alt_DCM_MI(model(X_pgd),y_in,i,self.num_steps,self.num_classes)
+                    loss = Alt_DCM_MI(logit,y,i,self.num_steps,self.num_classes)
                 elif self.loss_type == 'MIFPE':
-                    loss = MIFPE(model(X_pgd),y_in)
+                    loss = MIFPE(logit,y)
                 elif self.loss_type == 'MIFPE_T':
-                    logit = model(X_pgd)
-                    logit_y = torch.eye(self.num_classes)[y_in.to("cpu")].to("cuda")*logit*1e8
+                    logit_y = torch.eye(self.num_classes)[y.to("cpu")].to("cuda")*logit*1e8
                     target = (logit - logit_y).argmax(dim=-1)
                     loss = -MIFPE(logit,target)
                 else:
                     raise("error")
                 loss.backward()
+                
+                acc = logit.max(1)[1].detach()==y
+                accs[cor_indexs] = acc
+                X_adv[cor_indexs] = x_pgd.detach()
+                
                 if self.use_odi and i < 2:
-                    eta = epsilon * X_pgd.grad.data.sign()
+                    eta = epsilon * x_pgd.grad.data.sign()
                 else:
-                    eta = step_size * X_pgd.grad.data.sign()
-                X_pgd = Variable(X_pgd.data + eta, requires_grad=True)
-                eta = torch.clamp(X_pgd.data - x_in.data, -epsilon, epsilon)
-                X_pgd = Variable(x_in.data + eta, requires_grad=True)
-                X_pgd = Variable(torch.clamp(X_pgd, 0, 1.0), requires_grad=True)
-                logits = self.model(X_pgd)
-                X_adv, nc = adv_check_and_update(X_pgd, logits, y_in, nc, X_adv)
+                    eta = step_size * x_pgd.grad.data.sign()
+                x_pgd = torch.clamp(x_pgd.data + eta, 0.,1.)
+                eta = torch.clamp(x_pgd.data - x_in[cor_indexs].data, -epsilon, epsilon)
+                x_pgd = torch.clamp(x_in[cor_indexs].data + eta,0.,1.)
+                x_pgd = Variable(x_pgd[acc],requires_grad=True)
+                
+                cor_indexs = accs.nonzero().squeeze()
+                y = y_in[cor_indexs]
+                
+            with torch.no_grad():
+                logits = self.model(x_pgd)
+                acc = logits.max(1)[1]==y
+                accs[cor_indexs] = acc
+                X_adv[cor_indexs] = x_pgd
+        return X_adv,accs
 
-        return X_adv
 
-
-class MTPGDAttack():
-    def __init__(self, model, epsilon=8./255., num_steps=50, step_size=2./255.,
-                 num_restarts=1, v_min=0., v_max=1., num_classes=10,
-                 random_start=False, loss_type='CE',decay_step='cos', use_odi=False):
-        self.model = model
-        self.epsilon = epsilon
-        self.num_steps = num_steps
-        self.step_size = step_size
-        self.random_start = random_start
-        self.num_restarts = num_restarts
-        self.v_min = v_min
-        self.v_max = v_max
-        self.num_classes = num_classes
-        self.use_odi = use_odi
-        self.loss_type = loss_type
-        self.decay_step = decay_step
-        self.con = False ####是否连续
-    def _get_rand_noise(self, X):
-        eps = self.epsilon
-        device = X.device
-        return torch.FloatTensor(*X.shape).uniform_(-eps, eps).to(device)
-
-    def perturb(self, x_in, y_in):
-        step_size_begin = 2.0/255
-
-        with torch.no_grad():
-            logit = self.model(x_in).detach()
-        logit_y = torch.eye(self.num_classes)[y_in.cpu()].to('cuda')*logit*1e8
-        targets = (logit - logit_y).argsort(dim=-1,descending=True)[:,:10]
-        
-        nat_pred = logit.max(dim=1)[1]
-        nat_correct = (nat_pred == y_in).squeeze()
-        nc = torch.zeros_like(y_in)
-        X_adv = x_in.detach().clone()
-
-        for t in range(9):
-            # targets = torch.zeros_like(y)
-            # targets += t
-            # y_tg = one_hot_tensor(targets, self.num_classes)
-            y_gt = one_hot_tensor(y_in, self.num_classes)
-            y_tg = targets[:,t]
-
-            for _ in range(max(self.num_restarts, 1)):
-                if self.con:
-                    if t==0:
-                        r_noise = torch.FloatTensor(*x_in.shape).uniform_(-self.epsilon, self.epsilon).cuda()
-                        X_pgd = Variable(x_in.data+r_noise, requires_grad=True)
-                    X_pgd = Variable(X_adv+0,requires_grad=True)
-                else:
-                    r_noise = torch.FloatTensor(*x_in.shape).uniform_(-self.epsilon, self.epsilon).cuda()
-                    X_pgd = Variable(x_in.data+r_noise, requires_grad=True)
-
-                if self.use_odi:
-                    rv = torch.FloatTensor(*logit.shape).uniform_(-1., 1.)
-                    rv = rv.to(logit.device)
-
-                for i in range(self.num_steps):
-                    X_pgd.requires_grad_()
-                    self.model.zero_grad()
-                    if self.decay_step == 'linear':
-                        step_size = step_size_begin * (1 - i / self.num_steps)
-                    elif self.decay_step == 'cos':
-                        step_size = step_size_begin * math.cos(i / self.num_steps * math.pi * 0.5)
-                    else:
-                        pass
-                    with torch.enable_grad():
-                        logits = self.model(X_pgd)
-                        if self.loss_type == 'CE':
-                            loss = -F.cross_entropy(logits,y_tg)
-                        elif self.loss_type == 'Dlr':
-                            loss = Dlr_loss_t(logits, y_in, y_tg).sum()
-                        elif self.loss_type == 'Margin':
-                            z_t = logits.gather(1,y_tg.view(-1,1))
-                            z_y = logits.gather(1,y_in.view(-1,1))
-                            loss = torch.mean(z_t - z_y)
-                        elif self.loss_type == 'SFM':
-                            logits = F.softmax(logits,dim=-1)
-                            z_t = logits.gather(1,y_tg.view(-1,1))
-                            z_y = logits.gather(1,y_in.view(-1,1))
-                            loss = torch.mean(z_t - z_y)
-                        elif self.loss_type == 'MIFPE':
-                            loss = -MIFPE(logits,y_tg)
-                            
-                        X_adv, nc = adv_check_and_update(X_pgd, logits, y_in, nc, X_adv)
-                    loss.backward()
-                    eta = step_size * X_pgd.grad.data.sign()
-                    X_pgd = X_pgd.detach() + eta.detach()
-                    X_pgd = torch.min(torch.max(X_pgd, x_in - self.epsilon), x_in + self.epsilon)
-                    X_pgd = Variable(torch.clamp(X_pgd, self.v_min, self.v_max), requires_grad=True)
-                    X_adv, nc = adv_check_and_update(X_pgd, self.model(X_pgd), y_in, nc, X_adv)
-
-        return X_adv
