@@ -101,9 +101,9 @@ class APGDAttack():
             criterion_indiv = self.dlr_loss
         elif self.loss == 'Margin':
             criterion_indiv = Margin_loss
-        elif self.loss == 'Softmax_Margin':
+        elif self.loss == 'SFM':
             criterion_indiv = Softmax_Margin
-        elif self.loss == 'CE_MI':
+        elif self.loss == 'MIFPE':
             criterion_indiv = self.CE_MI
         else:
             raise ValueError('unknowkn loss')
@@ -233,42 +233,28 @@ class APGDAttack():
             if not cheap:
                 raise ValueError('not implemented yet')
 
-            else:
-                for counter in range(self.n_restarts):
-                    ind_to_fool = acc.nonzero().squeeze()
-                    if len(ind_to_fool.shape) == 0:
-                        ind_to_fool = ind_to_fool.unsqueeze(0)
-                    if ind_to_fool.numel() != 0:
-                        x_to_fool, y_to_fool = x[ind_to_fool].clone(), y[ind_to_fool].clone()
-                        best_curr, acc_curr, loss_curr, adv_curr = self.attack_single_run(x_to_fool, y_to_fool)
-                        ind_curr = (acc_curr == 0).nonzero().squeeze()
-                        #
-                        acc[ind_to_fool[ind_curr]] = 0
-                        adv[ind_to_fool[ind_curr]] = adv_curr[ind_curr].clone()
-                        if self.verbose:
-                            print('restart {} - robust accuracy: {:.2%} - cum. time: {:.1f} s'.format(
-                                counter, acc.float().mean(), time.time() - startt))
-
-            return adv
-
-        else:
-            adv_best = x.detach().clone()
-            loss_best = torch.ones([x.shape[0]]).to(self.device) * (-float('inf'))
+            
             for counter in range(self.n_restarts):
-                best_curr, _, loss_curr, _ = self.attack_single_run(x, y)
-                ind_curr = (loss_curr > loss_best).nonzero().squeeze()
-                adv_best[ind_curr] = best_curr[ind_curr] + 0.
-                loss_best[ind_curr] = loss_curr[ind_curr] + 0.
+                ind_to_fool = acc.nonzero().squeeze()
+                if len(ind_to_fool.shape) == 0:
+                    ind_to_fool = ind_to_fool.unsqueeze(0)
+                if ind_to_fool.numel() != 0:
+                    x_to_fool, y_to_fool = x[ind_to_fool].clone(), y[ind_to_fool].clone()
+                    best_curr, acc_curr, loss_curr, adv_curr = self.attack_single_run(x_to_fool, y_to_fool)
+                    ind_curr = (acc_curr == 0).nonzero().squeeze()
+                    #
+                    acc[ind_to_fool[ind_curr]] = 0
+                    adv[ind_to_fool[ind_curr]] = adv_curr[ind_curr].clone()
+                    if self.verbose:
+                        print('restart {} - robust accuracy: {:.2%} - cum. time: {:.1f} s'.format(
+                            counter, acc.float().mean(), time.time() - startt))
 
-                if self.verbose:
-                    print('restart {} - loss: {:.5f}'.format(counter, loss_best.sum()))
-
-            return adv_best
+            return adv,acc
 
 
 class APGDAttack_targeted():
     def __init__(self, model, n_iter=100, norm='Linf', n_restarts=1, eps=None,
-                 seed=0, eot_iter=1, rho=.75, verbose=False, device='cuda',
+                 seed=0, eot_iter=1, rho=.75, verbose=False, device='cuda',loss='Dlr',
                  n_target_classes=9):
         self.model = model
         self.n_iter = n_iter
@@ -282,6 +268,7 @@ class APGDAttack_targeted():
         self.target_class = None
         self.device = device
         self.n_target_classes = n_target_classes
+        self.loss = loss
 
     def check_oscillation(self, x, j, k, y5, k3=0.5):
         t = np.zeros(x.shape[1])
@@ -297,6 +284,17 @@ class APGDAttack_targeted():
         x_sorted, ind_sorted = x.sort(dim=1)
 
         return -(x[np.arange(x.shape[0]), y] - x[np.arange(x.shape[0]), y_target]) / (x_sorted[:, -1] - .5 * x_sorted[:, -3] - .5 * x_sorted[:, -4] + 1e-12)
+
+    def margin_loss_targeted(self,x,y,y_target):
+        zmax = x.gather(1,y_target.view(-1,1))
+        zy = x.gather(1,y.view(-1,1))
+        return (zmax-zy).squeeze()
+    
+    def sfm_loss_targeted(self, x, y, y_target):
+        x = torch.softmax(x,dim=-1)
+        zmax = x.gather(1,y_target.view(-1,1))
+        zy = x.gather(1,y.view(-1,1))
+        return (zmax-zy).squeeze()
 
     def attack_single_run(self, x_in, y_in):
         x = x_in.clone() if len(x_in.shape) == 4 else x_in.clone().unsqueeze(0)
@@ -327,7 +325,12 @@ class APGDAttack_targeted():
         for _ in range(self.eot_iter):
             with torch.enable_grad():
                 logits = self.model(x_adv)  # 1 forward pass (eot_iter = 1)
-                loss_indiv = self.dlr_loss_targeted(logits, y, y_target)
+                if self.loss == 'Dlr':
+                    loss_indiv = self.dlr_loss_targeted(logits, y, y_target)
+                elif self.loss == 'Margin':
+                    loss_indiv = self.margin_loss_targeted(logits, y, y_target)
+                elif self.loss == 'SFM':
+                    loss_indiv = self.sfm_loss_targeted(logits, y, y_target)
                 loss = loss_indiv.sum()
 
             grad += torch.autograd.grad(loss, [x_adv])[0].detach()  # 1 backward pass (eot_iter = 1)
@@ -380,7 +383,12 @@ class APGDAttack_targeted():
             for _ in range(self.eot_iter):
                 with torch.enable_grad():
                     logits = self.model(x_adv)  # 1 forward pass (eot_iter = 1)
-                    loss_indiv = self.dlr_loss_targeted(logits, y, y_target)
+                    if self.loss == 'Dlr':
+                        loss_indiv = self.dlr_loss_targeted(logits, y, y_target)
+                    elif self.loss == 'Margin':
+                        loss_indiv = self.margin_loss_targeted(logits, y, y_target)
+                    elif self.loss == 'SFM':
+                        loss_indiv = self.sfm_loss_targeted(logits, y, y_target)
                     loss = loss_indiv.sum()
 
                 grad += torch.autograd.grad(loss, [x_adv])[0].detach()  # 1 backward pass (eot_iter = 1)
@@ -464,4 +472,5 @@ class APGDAttack_targeted():
                             print('restart {} - target_class {} - robust accuracy: {:.2%} at eps = {:.5f} - cum. time: {:.1f} s'.format(
                                 counter, self.target_class, acc.float().mean(), self.eps, time.time() - startt))
 
-        return adv
+        return adv,acc
+
