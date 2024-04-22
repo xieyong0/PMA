@@ -1,14 +1,8 @@
 import numpy as np
 import time
 import torch
-#import scipy.io
-
-#import numpy.linalg as nl
-
-#
 import os
 import sys
-
 import torch.nn as nn
 import torch.nn.functional as F
 
