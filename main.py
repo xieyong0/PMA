@@ -19,21 +19,21 @@ else:
     device = torch.device('cpu')
 
 parser = argparse.ArgumentParser(description="attack")
-parser.add_argument('--dataset',type=str,default='CIFAR10')#数据集类型可选CIFAR10，CIFAR100，ImageNet
-parser.add_argument('--datapath', type=str, default='./datasets')#数据集路径
-parser.add_argument('--model',type=str,default='Gowal2020Uncovering_70_16_extra')#模型名，可选XCIT_S，XCIT_M，XCIT_L
-parser.add_argument('--modelpath',type=str,default='./models/checkpoints/CIFAR10/top10/Gowal2020Uncovering_70_16_extra.pth')#模型路径
+parser.add_argument('--dataset',type=str,default='CIFAR10')
+parser.add_argument('--datapath', type=str, default='./datasets')
+parser.add_argument('--model',type=str,default='Gowal2020Uncovering_70_16_extra')
+parser.add_argument('--modelpath',type=str,default='./models/checkpoints/CIFAR10/top10/Gowal2020Uncovering_70_16_extra.pth')
 parser.add_argument('--eps', type=int, default=8)
 parser.add_argument('--bs', type=int, default=64)
-#可以更改的超参数
-parser.add_argument('--attack_type',type=str,default='MD')#可选PGD,FAB
+
+parser.add_argument('--attack_type',type=str,default='MD')
 parser.add_argument('--random_start',type=bool,default=True)
 parser.add_argument('--noise',type=str,default="Uniform")
 parser.add_argument('--num_restarts',type=int,default=1)
 
 parser.add_argument('--step_size',type=float,default=2./255)
 parser.add_argument('--num_steps',type=int,default=100)
-parser.add_argument('--loss_f',type=str,default="p_margin")#损失函数，可选CE,Margin_loss,DLR,混合loss,Softmax_Margin CE_T_MI
+parser.add_argument('--loss_f',type=str,default="p_margin")
 parser.add_argument('--use_odi',type=bool,default=False)
 parser.add_argument('--remark',type=str,default='')
 parser.add_argument('--mark',type=int,default=0)
