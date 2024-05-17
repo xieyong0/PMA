@@ -73,9 +73,9 @@ class Attacker():
         elif self.attack_type == 'Square':
             self.attacks_to_run = [self.square]
             
-        elif self.attack_type == 'MINE2':
+        elif self.attack_type == 'PMA+APGDT':
             self.md = self.md = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=100,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn="p_margin")
-            self.apgdt = autopgd_pt.APGDAttack_targeted(self.model, n_iter=50, norm='Linf', n_restarts=self.num_restarts, eps=self.eps,
+            self.apgdt = autopgd_pt.APGDAttack_targeted(self.model, n_iter=100, norm='Linf', n_restarts=self.num_restarts, eps=self.eps,
                  seed=0, eot_iter=1, rho=.75, verbose=False,loss='Dlr')
             self.attacks_to_run = [self.md,self.apgdt]
     
