@@ -8,7 +8,6 @@ from autoattack import AutoAttack
 from attacks.attack_handler import Attacker
 from torchvision import transforms
 import torchvision
-import pdb
 
 if torch.cuda.is_available():
     torch.backends.cudnn.enabled = True
@@ -22,7 +21,6 @@ parser = argparse.ArgumentParser(description="attack")
 parser.add_argument('--dataset',type=str,default='CIFAR10')
 parser.add_argument('--datapath', type=str, default='./datasets')
 parser.add_argument('--model',type=str,default='Gowal2020Uncovering_70_16_extra')
-parser.add_argument('--modelpath',type=str,default='./models/checkpoints/CIFAR10/top10/Gowal2020Uncovering_70_16_extra.pth')
 parser.add_argument('--eps', type=int, default=8)
 parser.add_argument('--bs', type=int, default=64)
 
@@ -30,20 +28,17 @@ parser.add_argument('--attack_type',type=str,default='MD')
 parser.add_argument('--random_start',type=bool,default=True)
 parser.add_argument('--noise',type=str,default="Uniform")
 parser.add_argument('--num_restarts',type=int,default=1)
-
 parser.add_argument('--step_size',type=float,default=2./255)
 parser.add_argument('--num_steps',type=int,default=100)
 parser.add_argument('--loss_f',type=str,default="p_margin")
 parser.add_argument('--use_odi',type=bool,default=False)
-parser.add_argument('--remark',type=str,default='')
-parser.add_argument('--mark',type=int,default=0)
 parser.add_argument('--num_classes',type=int ,default=10)
 
 parser.add_argument('--result_path',type=str,default='./results')
 
 args = parser.parse_args()
 args.eps = args.eps/255
-file_n = '%s_%s_%s_%s.json' % (args.model,args.attack_type,args.loss_f,args.mark)
+file_n = '%s_%s_%s.json' % (args.model,args.attack_type,args.loss_f)
 
 def main():
     util.build_dirs(args.result_path)
@@ -113,7 +108,7 @@ def main():
         'adv_acc': robust_accuracy,
         'cost': cost,
     }
-    filename = '%s_%s_%s.json' % (args.model,args.attack_type,args.mark)
+    filename = '%s_%s.json' % (args.model,args.attack_type)
     filename = os.path.join(args.result_path+'/'+args.dataset+'/100', filename)
     util.save_json(payload, filename)
     return
