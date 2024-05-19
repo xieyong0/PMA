@@ -3,11 +3,7 @@ import numpy as np
 from . import PGD
 from . import autopgd_pt
 from . import MD
-from . import fab_pt
-from autoattack import square,fab_pt
-from .utils import adv_check_and_update
 from tqdm.auto import tqdm
-import pdb
 import time
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -50,7 +46,8 @@ class Attacker():
         self.square = square.SquareAttack(self.model, p_init=.8, n_queries=5000, eps=self.eps, norm='Linf',
                 n_restarts=1, seed=0, verbose=False, device='cuda', resc_schedule=False)
 
-        self.md = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=self.num_steps,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn=self.loss_f)
+        self.md = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=self.num_steps,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn='Margin')
+        self.pma = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=self.num_steps,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn='PM')
         
         self.apgdt = autopgd_pt.APGDAttack_targeted(self.model, n_iter=self.num_steps, norm='Linf', n_restarts=self.num_restarts, eps=self.eps,
                  seed=0, eot_iter=1, rho=.75, verbose=False,loss=self.loss_f)
@@ -66,12 +63,9 @@ class Attacker():
             
         elif self.attack_type == 'MD':
             self.attacks_to_run = [self.md]
-        
-        elif self.attack_type == 'FAB':
-            self.attacks_to_run = [self.fab]
-        
-        elif self.attack_type == 'Square':
-            self.attacks_to_run = [self.square]
+
+        elif self.attack_type == 'PMA':
+            self.attacks_to_run = [self.pma]
             
         elif self.attack_type == 'PMA+':
             self.md = self.md = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=100,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn="p_margin")
