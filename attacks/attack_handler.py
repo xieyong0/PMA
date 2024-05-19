@@ -73,7 +73,7 @@ class Attacker():
         elif self.attack_type == 'Square':
             self.attacks_to_run = [self.square]
             
-        elif self.attack_type == 'PMA+APGDT':
+        elif self.attack_type == 'PMA+':
             self.md = self.md = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=100,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn="p_margin")
             self.apgdt = autopgd_pt.APGDAttack_targeted(self.model, n_iter=100, norm='Linf', n_restarts=self.num_restarts, eps=self.eps,
                  seed=0, eot_iter=1, rho=.75, verbose=False,loss='Dlr')
@@ -119,7 +119,7 @@ class Attacker():
             end = time.time()
             # Log
             if self.verbose:
-                print(f"————after attack{i+1}————adv_acc:{len(indexs)/total*100:.2f}")
-                print(f"————after attack{i+1}————time:{end-start}")
+                print(f"after attack{i+1}---adv_acc:{len(indexs)/total*100:.2f}")
+                print(f"after attack{i+1}---time:{end-start}")
 
         return (clean_sum/total).item(), len(indexs)/total,adv_images
