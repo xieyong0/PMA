@@ -33,12 +33,8 @@ class MDAttack():
         self.loss_fn = loss_fn
         self.initial_step_size = 2.0 * epsilon
 
-    def dlr_loss(self, x, y):
-        x_sorted, ind_sorted = x.sort(dim=1)
-        ind = (ind_sorted[:, -1] == y).float()
-        return -(x[np.arange(x.shape[0]), y] - x_sorted[:, -2] * ind - x_sorted[:, -1] * (1. - ind)) / (x_sorted.sum(dim=1) + 1e-12)
-
     def perturb(self, x_in, y_in):
+        device = x_in.device
         assert self.loss_fn in ['margin', 'p_margin']
         
         change_point = self.change_point
@@ -51,9 +47,8 @@ class MDAttack():
 
         for _ in range(max(self.num_random_starts, 1)):
             for r in range(2):
-                r_noise = torch.FloatTensor(*x_in[accs].shape).uniform_(-self.epsilon, self.epsilon).cuda()
+                r_noise = torch.FloatTensor(*x_in[accs].shape).uniform_(-self.epsilon, self.epsilon).to(device)
                 X_adv[accs] = x_in[accs].data + r_noise
-                
                 cor_indexs = accs.nonzero().squeeze()
                 x_pgd = Variable(X_adv[cor_indexs] + 0.,requires_grad=True)
                 y = y_in[cor_indexs]
@@ -61,14 +56,10 @@ class MDAttack():
                 for i in range(self.num_steps):
                     with torch.enable_grad():
                         logits = self.model(x_pgd)
-                        if self.loss_fn == "p_margin":
-                            logits = F.softmax(logits,dim=-1)
-                        
+                        if self.loss_fn == "pm":
+                            logits = F.softmax(logits,dim=-1) 
                         z_y = logits.gather(1, y.view(-1, 1))
-                        
-                        #pdb.set_trace()
-                        
-                        z_max = logits.gather(1, (logits - torch.eye(self.num_classes)[y.cpu()].to("cuda") * 9999).argmax(1, keepdim=True))
+                        z_max = logits.gather(1, (logits - torch.eye(self.num_classes)[y.cpu()].to(device) * 9999).argmax(1, keepdim=True))
 
                         if i < 1:
                             loss_per_sample = z_y
@@ -76,15 +67,11 @@ class MDAttack():
                         elif i < change_point:
                             loss_per_sample = z_max if r else -z_y
                             loss = torch.mean(loss_per_sample)
-                        elif self.use_dlr:
-                            loss = self.dlr_loss(logits, y).mean()
                         else:
                             loss_per_sample = z_max - z_y
                             loss = torch.mean(loss_per_sample)
                         loss.backward()
-                        
                         acc = logits.max(1)[1] == y
-                        
                         accs[cor_indexs] = acc
                         X_adv[cor_indexs] = x_pgd.detach()
 
@@ -99,7 +86,6 @@ class MDAttack():
                     x_pgd = torch.min(torch.max(x_pgd, x_in[cor_indexs] - self.epsilon), x_in[cor_indexs] + self.epsilon)
                     x_pgd = torch.clamp(x_pgd, self.v_min, self.v_max)
                     x_pgd = Variable(x_pgd[acc],requires_grad=True)
-                    
                     cor_indexs = accs.nonzero().squeeze()
                     y = y_in[cor_indexs]
                     
