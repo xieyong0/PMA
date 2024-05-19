@@ -332,5 +332,6 @@ class FABAttack():
                             if self.verbose:
                                 print('restart {} - target_class {} - robust accuracy: {:.2%} at eps = {:.5f} - cum. time: {:.1f} s'.format(
                                     counter, self.target_class, acc.float().mean(), self.eps, time.time() - startt))
-
-        return adv
+        with torch.no_grad():
+            adv_acc = self._predict_fn(adv).max(1)[1] == y
+        return adv,adv_acc
