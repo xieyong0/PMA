@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from torch.autograd import Variable
-from .utils import adv_check_and_update, one_hot_tensor
 import math
 import pdb
 
