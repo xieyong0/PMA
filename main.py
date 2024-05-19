@@ -20,7 +20,7 @@ else:
 parser = argparse.ArgumentParser(description="attack")
 parser.add_argument('--dataset',type=str,default='CIFAR10')
 parser.add_argument('--datapath', type=str, default='./datasets')
-parser.add_argument('--model',type=str,default='Gowal2020Uncovering_70_16_extra')
+parser.add_argument('--model',type=str,default='Peng2023Robust')
 parser.add_argument('--eps', type=int, default=8)
 parser.add_argument('--bs', type=int, default=64)
 
