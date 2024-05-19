@@ -45,26 +45,27 @@ def main():
     if args.dataset == 'CIFAR10':
         test_tf = transforms.Compose([transforms.ToTensor()])
         dataset = torchvision.datasets.CIFAR10(root=args.datapath, train=False, download=False, transform=test_tf)
+        model = load_model(model_name=args.model, dataset='cifar10', threat_model='Linf')
 
     elif args.dataset == 'CIFAR100':
         test_tf = transforms.Compose([transforms.ToTensor()])
         dataset = torchvision.datasets.CIFAR100(root=args.datapath, train=False, download=False, transform=test_tf)
+        model = load_model(model_name=args.model, dataset='cifar100', threat_model='Linf')
         
     elif args.dataset == "ImageNet":
         test_tf = transforms.Compose([transforms.Resize(256),
                            transforms.CenterCrop(224),
                            transforms.ToTensor()])
         dataset = torchvision.datasets.ImageFolder(root=args.datapath+'/val',transform=test_tf)
+        model = load_model(model_name=args.model, dataset='imagenet', threat_model='Linf')
 
     x_test = [dataset[i][0] for i in range(len(dataset))]
     y_test = [dataset[i][1] for i in range(len(dataset))]
     x_test = torch.stack(x_test,dim=0)
     y_test = torch.tensor(y_test)
 
-    model = torch.load(args.modelpath)
     model = model.to(device)
     model.eval()
-
     for param in model.parameters():
         param.requires_grad = False
     
@@ -76,7 +77,6 @@ def main():
         adversary.set_version(args.attack_type)
         clean_accuracy = adversary.clean_accuracy(x_test, y_test, bs=args.bs)
         x_adv = adversary.run_standard_evaluation(x_test, y_test, bs=args.bs)
-            
         robust_accuracy = adversary.clean_accuracy(x_adv, y_test, bs=args.bs)
         
     else:
@@ -86,7 +86,6 @@ def main():
                  num_classes=args.num_classes,verbose=True, x_test=x_test, y_test=y_test, bs=args.bs )
         rs = adversary.evaluate()
         clean_accuracy, robust_accuracy, x_adv = rs
-
         print(f"clean_accuracy:{clean_accuracy*100:.2f}")
         print(f"robust_accuracy:{robust_accuracy*100:.2f}")
     end = time.time()
@@ -109,7 +108,7 @@ def main():
         'cost': cost,
     }
     filename = '%s_%s.json' % (args.model,args.attack_type)
-    filename = os.path.join(args.result_path+'/'+args.dataset+'/100', filename)
+    filename = os.path.join(args.result_path+'/'+args.dataset, filename)
     util.save_json(payload, filename)
     return
 
