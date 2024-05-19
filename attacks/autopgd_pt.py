@@ -95,7 +95,7 @@ class APGDAttack():
             criterion_indiv = self.dlr_loss
         elif self.loss == 'Margin':
             criterion_indiv = Margin_loss
-        elif self.loss == 'SFM':
+        elif self.loss == 'PM':
             criterion_indiv = Softmax_Margin
         elif self.loss == 'MIFPE':
             criterion_indiv = self.CE_MI
@@ -284,7 +284,7 @@ class APGDAttack_targeted():
         zy = x.gather(1,y.view(-1,1))
         return (zmax-zy).squeeze()
     
-    def sfm_loss_targeted(self, x, y, y_target):
+    def pm_loss_targeted(self, x, y, y_target):
         x = torch.softmax(x,dim=-1)
         zmax = x.gather(1,y_target.view(-1,1))
         zy = x.gather(1,y.view(-1,1))
@@ -323,8 +323,8 @@ class APGDAttack_targeted():
                     loss_indiv = self.dlr_loss_targeted(logits, y, y_target)
                 elif self.loss == 'Margin':
                     loss_indiv = self.margin_loss_targeted(logits, y, y_target)
-                elif self.loss == 'SFM':
-                    loss_indiv = self.sfm_loss_targeted(logits, y, y_target)
+                elif self.loss == 'PM':
+                    loss_indiv = self.pm_loss_targeted(logits, y, y_target)
                 loss = loss_indiv.sum()
 
             grad += torch.autograd.grad(loss, [x_adv])[0].detach()  # 1 backward pass (eot_iter = 1)
@@ -381,8 +381,8 @@ class APGDAttack_targeted():
                         loss_indiv = self.dlr_loss_targeted(logits, y, y_target)
                     elif self.loss == 'Margin':
                         loss_indiv = self.margin_loss_targeted(logits, y, y_target)
-                    elif self.loss == 'SFM':
-                        loss_indiv = self.sfm_loss_targeted(logits, y, y_target)
+                    elif self.loss == 'PM':
+                        loss_indiv = self.pm_loss_targeted(logits, y, y_target)
                     loss = loss_indiv.sum()
 
                 grad += torch.autograd.grad(loss, [x_adv])[0].detach()  # 1 backward pass (eot_iter = 1)
