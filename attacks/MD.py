@@ -23,7 +23,7 @@ class MDAttack():
         self.num_random_starts = num_random_starts
         self.v_min = v_min
         self.v_max = v_max
-        self.change_point = num_steps/2
+        self.change_point = num_steps / 2
         self.first_step_size = first_step_size
         self.seed = seed
         self.norm = norm
@@ -45,6 +45,8 @@ class MDAttack():
         pred = logits.max(dim=1)[1]
         accs = pred==y_in
 
+        re = []
+        
         for _ in range(max(self.num_random_starts, 1)):
             for r in range(2):
                 r_noise = torch.FloatTensor(*x_in[accs].shape).uniform_(-self.epsilon, self.epsilon).to(device)
@@ -70,6 +72,8 @@ class MDAttack():
                         else:
                             loss_per_sample = z_max - z_y
                             loss = torch.mean(loss_per_sample)
+                            if i % 10 == 0:
+                                re.append((loss/x_pgd.shape[0]).item())
                         loss.backward()
                         acc = logits.max(1)[1] == y
                         accs[cor_indexs] = acc
@@ -95,4 +99,10 @@ class MDAttack():
                 accs[cor_indexs] = acc
                 X_adv[cor_indexs] = x_pgd
                     
-        return X_adv,accs
+        with torch.no_grad():
+            logits = self.model(X_adv)
+            pred = logits.max(1)[1]
+            adv_cross = F.cross_entropy(logits,y_in)
+            adv_cross_pred = F.cross_entropy(logits,pred)
+                
+        return X_adv, accs, adv_cross.item(), adv_cross_pred.item(), re
