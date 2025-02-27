@@ -90,17 +90,6 @@ def main():
     cost = end - start
     print(f"cost:{cost}")
     payload = {
-        'model': args.model,
-        #'eps':args.eps,
-        #'bs': args.bs,
-        #'random_start':args.random_start,
-        #'noise':args.noise,
-        #'num_restarts':args.num_restarts,
-        'attack_type':args.attack_type,
-        'num_steps':args.num_steps,
-        #'step_size':args.step_size,
-        'loss_f':args.loss_f,
-        #'use_odi':args.use_odi,
         'clean_acc': clean_accuracy,
         'adv_acc': robust_accuracy,
         'cost': cost,
