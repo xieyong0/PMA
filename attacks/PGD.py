@@ -38,7 +38,15 @@ def Softmax_Margin(logits, y, num_classes):
     loss = -logit_org + logit_target
     loss = torch.sum(loss)
     return loss
-    
+
+def Alt_Loss(logits,y,e,epochs,num_classes):
+    if e<epochs/3:
+        return F.cross_entropy(logits,y)
+    elif e<epochs/3*2:
+        return Dlr_loss(logits,y).sum()
+    else:
+        return Margin_loss(logits,y,num_classes)
+
 def MIFPE(logits,y):
     t = 1.0
     device = logits.device
@@ -128,7 +136,7 @@ class PGDAttack():
                 elif self.loss_type == 'SFM':
                     loss = Softmax_Margin(logit,y,self.num_classes)
                 elif self.loss_type == 'AltPGD':
-                    loss = AltPGD(logit,y,i,self.num_steps,self.num_classes)
+                    loss = Alt_Loss(logit,y,i,self.num_steps,self.num_classes)
                 elif self.loss_type == 'MIFPE':
                     loss = MIFPE(logit,y)
                 elif self.loss_type == 'MIFPE_T':
@@ -156,9 +164,11 @@ class PGDAttack():
                 
             with torch.no_grad():
                 logits = self.model(x_pgd)
-                acc = logits.max(1)[1]==y
+                pred = logits.max(1)[1]
+                acc = pred==y
                 accs[cor_indexs] = acc
                 X_adv[cor_indexs] = x_pgd
-        return X_adv,accs
+        
+        return X_adv, accs
 
 
