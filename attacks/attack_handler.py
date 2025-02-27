@@ -38,16 +38,9 @@ class Attacker():
         
         self.apgd = autopgd_pt.APGDAttack(self.model, n_iter=self.num_steps, norm='Linf', n_restarts=self.num_restarts, eps=self.eps,
                  seed=0, loss=self.loss_f, eot_iter=1, rho=.75, verbose=False)
-              
-        self.fab = fab_pt.FABAttack_PT(model, n_restarts=1, n_iter=100,
-                                       eps=self.eps, seed=0,n_target_classes=9,
-                                       verbose=False, device='cuda')
-                     
-        self.square = square.SquareAttack(self.model, p_init=.8, n_queries=5000, eps=self.eps, norm='Linf',
-                n_restarts=1, seed=0, verbose=False, device='cuda', resc_schedule=False)
 
-        self.md = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=self.num_steps,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn='Margin')
-        self.pma = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=self.num_steps,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn='PM')
+        self.md = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=self.num_steps,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn='margin')
+        self.pma = MD.MDAttack(self.model,num_classes=self.num_classes,num_steps=self.num_steps,num_random_starts=self.num_restarts,epsilon=self.eps,loss_fn='p_margin')
         
         self.apgdt = autopgd_pt.APGDAttack_targeted(self.model, n_iter=self.num_steps, norm='Linf', n_restarts=self.num_restarts, eps=self.eps,
                  seed=0, eot_iter=1, rho=.75, verbose=False,loss=self.loss_f)
@@ -79,6 +72,8 @@ class Attacker():
         total = self.y_test.shape[0]
         adv_images = self.x_test.clone()
         indexs = torch.tensor([i for i in range(total)],dtype=torch.int32)
+        adv_crosss = []
+        adv_cross_preds = []
         
         for i, a in enumerate(self.attacks_to_run):
             print(f"——————attack{i+1}——————")
@@ -101,13 +96,14 @@ class Attacker():
                     clean_sum += accs.float().sum()
                 pre_acc = accs.float().mean()
                 cor_indexs = accs.nonzero().squeeze()
-                x_adv,adv_acc = a.perturb(images[cor_indexs], labels[cor_indexs])
+                x_adv, adv_acc = a.perturb(images[cor_indexs], labels[cor_indexs])
                 accs[cor_indexs] = adv_acc
 
                 adv_indexs = torch.cat((adv_indexs,index[accs.cpu()]),dim=0)
                 adv_images[index[cor_indexs.cpu()]] = x_adv.detach().cpu()
                 
                 print(f"pre_acc:{pre_acc*100:.2f}, adv_acc:{accs.float().mean()*100:.2f}")
+                
             indexs = adv_indexs
 
             end = time.time()
