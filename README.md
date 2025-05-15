@@ -1,7 +1,6 @@
 # PMA: Probability Margin Attack for Million-Scale Adversarial Robustness Evaluation
 
-[![arXiv](https://img.shields.io/badge/arXiv-2411.15210-b31b1b.svg)](https://arxiv.org/abs/2411.15210)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![arXiv](https://img.shields.io/badge/arXiv-2411.15210-b31b1b.svg)]
 
 Official implementation of the paper **"Towards Million-Scale Adversarial Robustness Evaluation With Stronger Individual Attacks"**. This repository contains:
 
@@ -9,16 +8,50 @@ Official implementation of the paper **"Towards Million-Scale Adversarial Robust
 - 💥 **PMA+** (Enhanced Combined Attack)
 - 📦 Large-scale evaluation tools for CIFAR10/100, ImageNet and CC1M
 
-![Framework Visualization](https://raw.githubusercontent.com/fra31/auto-attack/main/assets/pma_diagram.png)
-
-## Key Features
-- **CC1M Benchmark** - 百万级对抗评估数据集
-- **Unified Attack Framework** 支持12种白盒攻击方法
-- **PMA** 批量评估速度提升5-10倍
-
 ## 安装指南
 ```bash
 git clone https://github.com/fra31/auto-attack.git](https://github.com/xieyong0/PMA.git
 conda create -n pma python=3.9
 conda activate pma
 pip install -r requirements.txt
+```
+
+## Usage
+### Parameter Settings
+
+| Parameter Name | Type |Description |
+| ---- | ---- | ----|
+| dataset | string  | Name of the dataset (CIFAR10/CIFAR100/ImageNet/CC1M) |
+| datapath | string | Path to the dataset |
+| modelpath | string | Path to the model |
+| eps | int | Perturbation range (commonly set to 4 or 8) |
+| bs | int  | Batch size |
+| attack_type | string | Attack strategy |
+| random_start | bool | Whether to add random noise (boolean) |
+| num_restarts | int | Number of restarts |
+| num_steps | int | Number of attack steps |
+| loss_f | string | Type of loss function |
+| use_odi | bool | Whether to use the ODI strategy |
+| num_classes | int | Number of classes in the model |
+| result_path | string | Path to save the results |
+
+### Execution
+```bash
+python main.py --dataset <dataset_name> --datapath <dataset_dir> --model <model_path> --eps 8 --bs <batchsize> --attack_type <PMA> --loss_f <pm> --num_steps 100 --num_classes <num_classes>
+```
+
+# Acknowledgements
+We have integrated several classic white-box attack methods, incorporating various strategies, as detailed below:
+
+|Methods|Paper Title|
+|----|----|
+|PGD|“Towards deep learning models resistant to adversarial attacks”|
+|ODI|“Diversity can be transferred: Output diversification for white-and black-box attacks”|
+|PGD_mg|“Towards evaluating the robustness of neural networks”|
+|MT|“An alternative surrogate loss for pgd-based adversarial testing”|
+|APGD|“Reliable evaluation of adversarial robustness with an ensemble of diverse parameter-free attacks”|
+|APGDT|“Reliable evaluation of adversarial robustness with an ensemble of diverse parameter-free attacks”|
+|FAB|“Minimally distorted adversarial examples with a fast adaptive boundary attack”|
+|MD|“Imbalanced gradients: a subtle cause of overestimated adversarial robustness”|
+|PGD_alt|“Alternating Objectives Generates Stronger PGD-Based Adversarial Attacks”|
+|PGD_mi|“Efficient loss function by minimizing the detrimental effect of floating-point errors on gradient-based attacks”|
