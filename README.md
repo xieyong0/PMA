@@ -15,7 +15,6 @@ conda create -n pma python=3.9
 conda activate pma
 pip install -r requirements.txt
 ```
-
 ## Usage
 ### Parameter Settings
 
@@ -23,7 +22,7 @@ pip install -r requirements.txt
 | ---- | ---- | ----|
 | dataset | string  | Name of the dataset (CIFAR10/CIFAR100/ImageNet/CC1M) |
 | datapath | string | Path to the dataset |
-| modelpath | string | Path to the model |
+| model | string | Path/Name of the model |
 | eps | int | Perturbation range (commonly set to 4 or 8) |
 | bs | int  | Batch size |
 | attack_type | string | Attack strategy |
@@ -40,7 +39,7 @@ pip install -r requirements.txt
 python main.py \
   --dataset CIFAR10 \
   --datapath ./data \
-  --model ./checkpoints/model.pth \
+  --model model_name \
   --eps 8 \
   --bs 256 \
   --attack_type PMA \
@@ -50,7 +49,18 @@ python main.py \
   --result_path ./results
 ```
 
-# Acknowledgements
+## 📣 Citation
+```
+@article{xie2024towards,
+  title={Towards Million-Scale Adversarial Robustness Evaluation With Stronger Individual Attacks},
+  author={Xie, Yong and Zheng, Weijie and Huang, Hanxun and Ye, Guangnan and Ma, Xingjun},
+  journal={arXiv preprint arXiv:2411.15210},
+  year={2024}
+}
+```
+
+
+# 🙏Acknowledgements
 We have integrated several classic white-box attack methods, incorporating various strategies, as detailed below:
 
 |Methods|Paper Title|
