@@ -37,7 +37,17 @@ pip install -r requirements.txt
 
 ### Execution
 ```bash
-python main.py --dataset <dataset_name> --datapath <dataset_dir> --model <model_path> --eps 8 --bs <batchsize> --attack_type <PMA> --loss_f <pm> --num_steps 100 --num_classes <num_classes>
+python main.py \
+  --dataset CIFAR10 \
+  --datapath ./data \
+  --model ./checkpoints/model.pth \
+  --eps 8 \
+  --bs 256 \
+  --attack_type PMA \
+  --loss_f pm \
+  --num_steps 100 \
+  --num_classes 10 \
+  --result_path ./results
 ```
 
 # Acknowledgements
