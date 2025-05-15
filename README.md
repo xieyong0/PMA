@@ -12,15 +12,13 @@ Official implementation of the paper **"Towards Million-Scale Adversarial Robust
 ![Framework Visualization](https://raw.githubusercontent.com/fra31/auto-attack/main/assets/pma_diagram.png)
 
 ## Key Features
-- **98% Attack Success Rate** on ImageNet (首次实现)
 - **CC1M Benchmark** - 百万级对抗评估数据集
 - **Unified Attack Framework** 支持12种白盒攻击方法
-- **GPU加速** 批量评估速度提升5-10倍
+- **PMA** 批量评估速度提升5-10倍
 
 ## 安装指南
 ```bash
-git clone https://github.com/fra31/auto-attack.git
-cd auto-attack
+git clone https://github.com/fra31/auto-attack.git](https://github.com/xieyong0/PMA.git
 conda create -n pma python=3.9
 conda activate pma
 pip install -r requirements.txt
