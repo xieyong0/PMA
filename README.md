@@ -1,4 +1,5 @@
 # PMA: Probability Margin Attack for Million-Scale Adversarial Robustness Evaluation
+[![arXiv](https://img.shields.io/badge/arXiv-2411.15210-b31b1b.svg)](https://arxiv.org/abs/2411.15210)
 📄 **[Paper (arXiv 2411.15210)](https://arxiv.org/abs/2411.15210)**
 Official implementation of the paper **"Towards Million-Scale Adversarial Robustness Evaluation With Stronger Individual Attacks"**. This repository contains:
 
